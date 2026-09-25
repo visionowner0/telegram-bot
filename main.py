@@ -17,7 +17,7 @@ def run_web():
     app_web.run(host="0.0.0.0", port=port)
 
 # Telegram Bot Setup
-BOT_TOKEN = "8962438715:AAF1xOkx8QEdIj_7dkre8sA3tR0e7Am74gY"
+BOT_TOKEN = "8962438715:AAEZdjcvXvdvZ_ZoOPcYvjeNVoqiVoWcqaU"
 REGISTRATION_LINK = "https://t.me/+2dsQzBDy3KAxNTNh"
 
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
