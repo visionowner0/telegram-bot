@@ -43,7 +43,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     welcome_text = (
         f"✅Hᴇʟʟᴏ {first_name} ᴄᴏɴɢʀᴀᴛᴜʟᴀᴛɪᴏɴꜱ🎉\n"
         "Yᴏᴜ Aʀᴇ ᴀ Pʀᴇᴍɪᴜᴍ Uꜱᴇʀ Nᴏᴡ 🧡\n\n"
-        "loss recovery fast :- /start\n\n"
+        "Auto Reaction :- /start\n\n"
         "Jᴏɪɴ ʜᴇʀᴇ 📌(ᴇxᴘɪʀᴇ ɪɴ 5 ᴍɪɴᴜᴛᴇꜱ)"
     )
 
