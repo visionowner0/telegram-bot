@@ -12,6 +12,7 @@ from telegram.ext import (
     ContextTypes
 )
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
 # Logging Setup
 logging.basicConfig(
@@ -23,6 +24,7 @@ logging.basicConfig(
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
+SESSION_STRING = os.environ.get("SESSION_STRING", "")  # For Telethon userbot login
 
 # Dummy Web Server for Render
 app_web = Flask(__name__)
@@ -35,9 +37,8 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host="0.0.0.0", port=port)
 
-# --- TELEGRAM BOT (Primary Bot) HANDLERS ---
+# --- PRIMARY BOT (AUTO-REACTION & WELCOME MESSAGE) ---
 
-# Primary Bot Auto-Reaction
 async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if update.channel_post:
@@ -46,10 +47,10 @@ async def handle_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE
                 message_id=update.channel_post.message_id,
                 reaction="🔥"
             )
+            logging.info("Primary bot post reaction success!")
     except Exception as e:
         logging.error(f"Bot reaction error: {e}")
 
-# Join Request Handler Function
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request = update.chat_join_request
     user_id = request.from_user.id
@@ -57,9 +58,9 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     welcome_text = (
         f"✅Hᴇʟʟᴏ {first_name} ᴄᴏɴɢʀᴀᴛᴜʟᴀᴛɪᴏɴꜱ🎉\n"
-        "Yᴏᴜ Aʀᴇ ᴀ Pʀᴇᴍɪᴜᴍ Uꜱᴇʀ Nᴏᴡ 🧡\n\n"
+        "Yᴏᴜ Aʀᴇ ᴀ PʀᴇᴍɪᴜM UꜱᴇR Nᴏᴡ 🧡\n\n"
         "Loss Recovery :- Join Nᴏᴡ \n\n"
-        "Jᴏɪɴ ʜᴇʀᴇ 📌(ᴇxᴘɪʀᴇ ɪɴ 5 ᴍɪɴᴜᴛᴇꜱ)"
+        "Jᴏɪɴ ʜᴇʀᴇ 📌(ᴇxᴘɪRᴇ ɪɴ 5 ᴍɪɴᴜᴛᴇꜱ)"
     )
 
     keyboard = [
@@ -78,61 +79,61 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
             text=welcome_text,
             reply_markup=reply_markup
         )
+        logging.info(f"Welcome message sent to {user_id}")
     except Exception as e:
-        logging.error(f"Error sending message to {user_id}: {e}")
+        logging.error(f"Error sending welcome message to {user_id}: {e}")
 
-# Global Error Handler
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logging.error("Exception while handling an update:", exc_info=context.error)
+# --- TELETHON USERBOT BACKGROUND WORKER ---
 
-
-# --- TELETHON USERBOT (Secondary ID) SETUP ---
-
-telethon_client = None
-if API_ID and API_HASH:
-    try:
-        telethon_client = TelegramClient('userbot_session', int(API_ID), API_HASH)
-
-        @telethon_client.on(events.NewMessage)
-        async def userbot_reaction_handler(event):
-            # If a new post comes in a channel where the userbot is present
-            if event.is_channel:
-                try:
-                    # Send a secondary reaction (e.g., 👍) from the secondary ID
-                    await telethon_client.send_reaction(event.chat_id, event.id, "👍")
-                except Exception as e:
-                    logging.error(f"Userbot reaction error: {e}")
-    except Exception as e:
-        logging.error(f"Failed to initialize Telethon client: {e}")
-
-
-# --- MAIN RUNNER ---
-
-def main():
-    threading.Thread(target=run_web, daemon=True).start()
-
-    if not BOT_TOKEN:
-        logging.error("BOT_TOKEN missing!")
+def start_telethon_userbot():
+    if not (API_ID and API_HASH and SESSION_STRING):
+        logging.warning("Telethon skipped: SESSION_STRING or API credentials missing.")
         return
 
-    # Initialize Primary Bot Application
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        client = TelegramClient(StringSession(SESSION_STRING), int(API_ID), API_HASH)
+
+        @client.on(events.NewMessage)
+        async def userbot_reaction_handler(event):
+            if event.is_channel:
+                try:
+                    await client.send_reaction(event.chat_id, event.id, "👍")
+                    logging.info("Secondary userbot reaction success!")
+                except Exception as e:
+                    logging.error(f"Userbot reaction error: {e}")
+
+        logging.info("Starting Telethon userbot...")
+        client.start()
+        client.run_until_disconnected()
+    except Exception as e:
+        logging.error(f"Telethon userbot crashed: {e}")
+
+# --- MAIN EXECUTOR ---
+
+def main():
+    # Start Flask server
+    threading.Thread(target=run_web, daemon=True).start()
+
+    # Start Telethon Userbot only if session exists
+    threading.Thread(target=start_telethon_userbot, daemon=True).start()
+
+    if not BOT_TOKEN:
+        logging.error("BOT_TOKEN is missing!")
+        return
+
     application = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .get_updates_read_timeout(42.0)
         .build()
     )
 
     application.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
     application.add_handler(ChatJoinRequestHandler(handle_join_request))
-    application.add_error_handler(error_handler)
 
-    print("Bot chalu ho gaya hai...")
-
-    # Start primary bot in polling mode with drop_pending_updates
+    logging.info("Primary Telegram Bot is polling...")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
