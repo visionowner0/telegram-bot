@@ -8,6 +8,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
     ChatJoinRequestHandler,
+    CommandHandler,
     MessageHandler,
     filters,
     ContextTypes
@@ -27,6 +28,9 @@ API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")  # For Telethon userbot login
 
+# Image URL for /start menu
+START_IMAGE_URL = "https://raw.githubusercontent.com/visionowner0/telegram-bot/main/photo_2026-09-26_02-57-21.jpg"
+
 # --- FLASK KEEP ALIVE DUMMY WEB SERVER ---
 app = Flask('')
 
@@ -41,6 +45,69 @@ def run():
 def keep_alive():
     t = Thread(target=run, daemon=True)
     t.start()
+
+# --- DIRECT USER START HANDLER WITH IMAGE, TEXT & INLINE BUTTONS ---
+
+async def handle_user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if update.message:
+            # 1. Reaction on /start message
+            await context.bot.set_message_reaction(
+                chat_id=update.effective_chat.id,
+                message_id=update.message.message_id,
+                reaction="🔥"
+            )
+
+            # 2. Start Message Text
+            start_text = (
+                "<b>Aᴜᴛᴏ Rᴇᴀᴄᴛɪᴏɴ Bᴏᴛ</b>\n\n"
+                "𖣘 I Aᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ Rᴇᴀᴄᴛ Tᴏ Eᴠᴇʀʏ Nᴇᴡ Pᴏꜱᴛ Iɴ Yᴏᴜʀ Cʜᴀɴɴᴇʟ Wɪᴛʜ Eᴍᴏᴊɪꜱ.\n\n"
+                "<b>Hᴏᴡ Tᴏ Usᴇ:</b>\n"
+                "➜ 1. Mᴀᴋᴇ Mᴇ Aᴅᴍɪɴ Iɴ Yᴏᴜʀ Cʜᴀɴɴᴇʟ\n"
+                "➜ 2. Pᴏsᴛ A Mᴇssᴀɢᴇ Iɴ Yᴏᴜʀ Cʜᴀɴɴᴇʟ"
+            )
+
+            # 3. Inline Keyboard Buttons (Add To Channel on Left, Add To Group on Right)
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        text="✚ 𝗔𝗱𝗱 𝗧𝗼 𝗖𝗵𝗮𝗻𝗻𝗲𝗹",
+                        url="https://t.me/visions05_bot?startchannel=true&admin=post_messages+edit_messages+delete_messages+invite_users+manage_chat+change_info"
+                    ),
+                    InlineKeyboardButton(
+                        text="✚ 𝗔𝗱𝗱 𝗧𝗼 𝗚𝗿𝗼𝘂𝗽",
+                        url="https://t.me/visions05_bot?startgroup=true&admin=post_messages+edit_messages+delete_messages+invite_users+manage_chat+change_info"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="👤𝗢𝘄𝗻𝗲𝗿",
+                        url="https://t.me/visionowmer"
+                    )
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            # 4. Send Photo with Caption & Buttons
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=START_IMAGE_URL,
+                    caption=start_text,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
+            except Exception as img_err:
+                logging.error(f"Failed to send image, sending text fallback: {img_err}")
+                await update.message.reply_text(
+                    text=start_text,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
+
+            logging.info(f"Sent start menu to {update.effective_user.id}")
+    except Exception as e:
+        logging.error(f"User start error: {e}")
 
 # --- PRIMARY BOT (AUTO-REACTION & WELCOME MESSAGE) ---
 
@@ -135,6 +202,8 @@ def main():
         .build()
     )
 
+    # Handlers
+    application.add_handler(CommandHandler("start", handle_user_start))
     application.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
     application.add_handler(ChatJoinRequestHandler(handle_join_request))
 
