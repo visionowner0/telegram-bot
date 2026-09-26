@@ -1,5 +1,6 @@
 import os
 import threading
+from threading import Thread
 import logging
 import asyncio
 from flask import Flask
@@ -26,16 +27,20 @@ API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")  # For Telethon userbot login
 
-# Dummy Web Server for Render
-app_web = Flask(__name__)
+# --- FLASK KEEP ALIVE DUMMY WEB SERVER ---
+app = Flask('')
 
-@app_web.route('/')
+@app.route('/')
 def home():
-    return "Bot is active!"
+    return "Bot is alive!"
 
-def run_web():
+def run():
     port = int(os.environ.get("PORT", 8080))
-    app_web.run(host="0.0.0.0", port=port)
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run, daemon=True)
+    t.start()
 
 # --- PRIMARY BOT (AUTO-REACTION & WELCOME MESSAGE) ---
 
@@ -60,7 +65,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"✅Hᴇʟʟᴏ {first_name} ᴄᴏɴɢʀᴀᴛᴜʟᴀᴛɪᴏɴꜱ🎉\n"
         "Yᴏᴜ Aʀᴇ ᴀ PʀᴇᴍɪᴜM UꜱᴇR Nᴏᴡ 🧡\n\n"
         "Loss Recovery :- Join Nᴏᴡ \n\n"
-        "Jᴏɪɴ ʜᴇʀᴇ 📌(ᴇxᴘɪRᴇ ɪɴ 5 ᴍɪɴᴜᴛᴇꜱ)"
+        "Jᴏɪɴ ʜᴇRᴇ 📌(ᴇxᴘɪRᴇ ɪɴ 5 ᴍɪɴᴜᴛᴇꜱ)"
     )
 
     keyboard = [
@@ -114,8 +119,8 @@ def start_telethon_userbot():
 # --- MAIN EXECUTOR ---
 
 def main():
-    # Start Flask server
-    threading.Thread(target=run_web, daemon=True).start()
+    # Start Flask Web Server for UptimeRobot
+    keep_alive()
 
     # Start Telethon Userbot only if session exists
     threading.Thread(target=start_telethon_userbot, daemon=True).start()
