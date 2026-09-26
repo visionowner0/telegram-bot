@@ -28,8 +28,8 @@ API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")  # For Telethon userbot login
 
-# Image URL for /start menu
-START_IMAGE_URL = "https://raw.githubusercontent.com/visionowner0/telegram-bot/main/photo_2026-09-26_02-57-21.jpg"
+# Image File Name in GitHub Repository
+START_IMAGE_PATH = "photo_2026-09-26_02-57-21.jpg"
 
 # --- FLASK KEEP ALIVE DUMMY WEB SERVER ---
 app = Flask('')
@@ -46,7 +46,7 @@ def keep_alive():
     t = Thread(target=run, daemon=True)
     t.start()
 
-# --- DIRECT USER START HANDLER WITH IMAGE, TEXT & INLINE BUTTONS ---
+# --- DIRECT USER START HANDLER WITH LOCAL IMAGE, TEXT & INLINE BUTTONS ---
 
 async def handle_user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -88,15 +88,23 @@ async def handle_user_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            # 4. Send Photo with Caption & Buttons
+            # 4. Send Local Photo with Caption & Buttons
             try:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=START_IMAGE_URL,
-                    caption=start_text,
-                    parse_mode="HTML",
-                    reply_markup=reply_markup
-                )
+                if os.path.exists(START_IMAGE_PATH):
+                    with open(START_IMAGE_PATH, 'rb') as photo_file:
+                        await context.bot.send_photo(
+                            chat_id=update.effective_chat.id,
+                            photo=photo_file,
+                            caption=start_text,
+                            parse_mode="HTML",
+                            reply_markup=reply_markup
+                        )
+                else:
+                    await update.message.reply_text(
+                        text=start_text,
+                        parse_mode="HTML",
+                        reply_markup=reply_markup
+                    )
             except Exception as img_err:
                 logging.error(f"Failed to send image, sending text fallback: {img_err}")
                 await update.message.reply_text(
